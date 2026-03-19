@@ -5,23 +5,26 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { parseTags } from '@/lib/tags'
 import type { PortalNode } from '@/lib/types'
+import { t, type Locale } from '@/lib/i18n'
 
 interface NodeCardProps {
   node: PortalNode
+  locale: Locale
   onEdit: (node: PortalNode) => void
   onDelete: (node: PortalNode) => void
   onToggleFavorite: (node: PortalNode) => void
   onOpen: (node: PortalNode) => void
 }
 
-export function NodeCard({ node, onEdit, onDelete, onToggleFavorite, onOpen }: NodeCardProps) {
+export function NodeCard({ node, locale, onEdit, onDelete, onToggleFavorite, onOpen }: NodeCardProps) {
+  const m = t(locale)
   const tags = parseTags(node.tags)
   const urlObj = new URL(node.url)
 
   const formatDate = (date: Date | string | null) => {
-    if (!date) return 'Never'
+    if (!date) return m.never
     const parsedDate = new Date(date)
-    return parsedDate.toLocaleDateString() + ' ' + parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    return parsedDate.toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US') + ' ' + parsedDate.toLocaleTimeString(locale === 'zh' ? 'zh-CN' : 'en-US', { hour: '2-digit', minute: '2-digit' })
   }
 
   return (
@@ -32,11 +35,9 @@ export function NodeCard({ node, onEdit, onDelete, onToggleFavorite, onOpen }: N
           <button
             onClick={() => onToggleFavorite(node)}
             className="rounded p-1 transition-colors hover:bg-accent"
-            aria-label={node.favorite ? 'Remove favorite' : 'Add favorite'}
+            aria-label={node.favorite ? m.removeFavorite : m.addFavoriteAria}
           >
-            <Star
-              className={`h-5 w-5 ${node.favorite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`}
-            />
+            <Star className={`h-5 w-5 ${node.favorite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
           </button>
         </div>
         <p className="text-sm text-muted-foreground">{urlObj.host}</p>
@@ -45,10 +46,7 @@ export function NodeCard({ node, onEdit, onDelete, onToggleFavorite, onOpen }: N
         {tags.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1">
             {tags.map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex items-center rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
-              >
+              <span key={tag} className="inline-flex items-center rounded bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
                 {tag}
               </span>
             ))}
@@ -58,14 +56,14 @@ export function NodeCard({ node, onEdit, onDelete, onToggleFavorite, onOpen }: N
         {node.lastOpenedAt && (
           <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
-            <span>Last opened: {formatDate(node.lastOpenedAt)}</span>
+            <span>{m.lastOpened} {formatDate(node.lastOpenedAt)}</span>
           </div>
         )}
       </CardContent>
       <CardFooter className="gap-2 border-t pt-3">
         <Button onClick={() => onOpen(node)} className="flex-1" size="sm">
           <ExternalLink className="mr-2 h-4 w-4" />
-          Open Dashboard
+          {m.openDashboard}
         </Button>
         <Button variant="outline" size="icon" onClick={() => onEdit(node)}>
           <Pencil className="h-4 w-4" />

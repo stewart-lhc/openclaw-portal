@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Search, Star, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -10,8 +10,10 @@ import { EditNodeDialog } from '@/components/edit-node-dialog'
 import { DeleteNodeDialog } from '@/components/delete-node-dialog'
 import { parseTags } from '@/lib/tags'
 import type { PortalNode } from '@/lib/types'
+import { t, type Locale } from '@/lib/i18n'
 
-export function NodeList() {
+export function NodeList({ locale }: { locale: Locale }) {
+  const m = t(locale)
   const [nodes, setNodes] = useState<PortalNode[]>([])
   const [allTags, setAllTags] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -24,22 +26,22 @@ export function NodeList() {
   const [deleteNode, setDeleteNode] = useState<{ id: string; name: string } | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
-  const fetchNodes = async () => {
+  const fetchNodes = useCallback(async () => {
     try {
       const response = await fetch('/api/nodes')
       const data = await response.json()
       setNodes(data.nodes)
       setAllTags(data.tags)
     } catch (error) {
-      console.error('Error fetching nodes:', error)
+      console.error(m.errors.fetchNodes, error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [m.errors.fetchNodes])
 
   useEffect(() => {
     fetchNodes()
-  }, [])
+  }, [fetchNodes])
 
   const filteredNodes = nodes.filter((node) => {
     if (searchQuery) {
@@ -50,21 +52,15 @@ export function NodeList() {
         node.tags.toLowerCase().includes(query) ||
         (node.notes?.toLowerCase().includes(query) ?? false)
 
-      if (!matchesSearch) {
-        return false
-      }
+      if (!matchesSearch) return false
     }
 
     if (selectedTag) {
       const tags = parseTags(node.tags)
-      if (!tags.includes(selectedTag)) {
-        return false
-      }
+      if (!tags.includes(selectedTag)) return false
     }
 
-    if (showFavoritesOnly && !node.favorite) {
-      return false
-    }
+    if (showFavoritesOnly && !node.favorite) return false
 
     return true
   })
@@ -78,10 +74,29 @@ export function NodeList() {
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.error || 'Failed to add node')
+      throw new Error(error.error || m.errors.failedAdd)
     }
 
     await fetchNodes()
+  }
+
+  const handleBatchAdd = async (nodeData: Array<{ name: string; url: string; tags: string; notes: string }>) => {
+    const response = await fetch('/api/discover-openclaw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nodes: nodeData }),
+    })
+
+    const result = await response.json()
+    if (!response.ok) {
+      throw new Error(result.error || m.errors.failedAdd)
+    }
+
+    await fetchNodes()
+    return {
+      created: Array.isArray(result.created) ? result.created.length : 0,
+      skipped: Array.isArray(result.skipped) ? result.skipped.length : 0,
+    }
   }
 
   const handleEdit = async (id: string, nodeData: { name: string; url: string; tags: string; notes: string }) => {
@@ -93,7 +108,7 @@ export function NodeList() {
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.error || 'Failed to update node')
+      throw new Error(error.error || m.errors.failedUpdate)
     }
 
     await fetchNodes()
@@ -105,7 +120,7 @@ export function NodeList() {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to delete node')
+      throw new Error(m.errors.failedDelete)
     }
 
     await fetchNodes()
@@ -118,9 +133,7 @@ export function NodeList() {
       body: JSON.stringify({ action: 'toggleFavorite' }),
     })
 
-    if (response.ok) {
-      await fetchNodes()
-    }
+    if (response.ok) await fetchNodes()
   }
 
   const handleOpen = async (node: PortalNode) => {
@@ -149,7 +162,7 @@ export function NodeList() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search nodes..."
+            placeholder={m.searchPlaceholder}
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             className="pl-10"
@@ -162,9 +175,9 @@ export function NodeList() {
             onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
           >
             <Star className={`mr-2 h-4 w-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
-            Favorites
+            {m.favorites}
           </Button>
-          <AddNodeDialog onAdd={handleAdd} />
+          <AddNodeDialog onAdd={handleAdd} onBatchAdd={handleBatchAdd} locale={locale} />
         </div>
       </div>
 
@@ -191,22 +204,22 @@ export function NodeList() {
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
           <X className="mr-1 h-4 w-4" />
-          Clear filters
+          {m.clearFilters}
         </Button>
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-muted-foreground">Loading...</div>
+        <div className="py-12 text-center text-muted-foreground">{m.loading}</div>
       ) : filteredNodes.length === 0 ? (
         <div className="py-12 text-center">
           {nodes.length === 0 ? (
             <div className="space-y-4">
-              <p className="text-lg font-medium">No nodes yet</p>
-              <p className="text-muted-foreground">Add your first OpenClaw dashboard to get started.</p>
-              <AddNodeDialog onAdd={handleAdd} />
+              <p className="text-lg font-medium">{m.noNodes}</p>
+              <p className="text-muted-foreground">{m.noNodesDesc}</p>
+              <AddNodeDialog onAdd={handleAdd} onBatchAdd={handleBatchAdd} locale={locale} />
             </div>
           ) : (
-            <p className="text-muted-foreground">No nodes match your filters.</p>
+            <p className="text-muted-foreground">{m.noMatch}</p>
           )}
         </div>
       ) : (
@@ -215,6 +228,7 @@ export function NodeList() {
             <NodeCard
               key={node.id}
               node={node}
+              locale={locale}
               onEdit={(selectedNode) => {
                 setEditNode(selectedNode)
                 setEditDialogOpen(true)
@@ -230,18 +244,14 @@ export function NodeList() {
         </div>
       )}
 
-      <EditNodeDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        node={editNode}
-        onEdit={handleEdit}
-      />
+      <EditNodeDialog open={editDialogOpen} onOpenChange={setEditDialogOpen} node={editNode} onEdit={handleEdit} locale={locale} />
 
       <DeleteNodeDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         node={deleteNode}
         onDelete={handleDelete}
+        locale={locale}
       />
     </div>
   )

@@ -11,10 +11,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { AlertTriangle } from 'lucide-react'
+import { t, type Locale } from '@/lib/i18n'
 
 interface DeleteNodeDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  locale: Locale
   node: {
     id: string
     name: string
@@ -22,7 +24,8 @@ interface DeleteNodeDialogProps {
   onDelete: (id: string) => void
 }
 
-export function DeleteNodeDialog({ open, onOpenChange, node, onDelete }: DeleteNodeDialogProps) {
+export function DeleteNodeDialog({ open, onOpenChange, node, onDelete, locale }: DeleteNodeDialogProps) {
+  const m = t(locale)
   const [loading, setLoading] = useState(false)
 
   const handleDelete = async () => {
@@ -42,18 +45,16 @@ export function DeleteNodeDialog({ open, onOpenChange, node, onDelete }: DeleteN
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Delete Node
+            {m.deleteNode}
           </DialogTitle>
-          <DialogDescription>
-            Are you sure you want to delete &quot;{node?.name}&quot;? This action cannot be undone.
-          </DialogDescription>
+          <DialogDescription>{m.deleteNodeDesc.replace('{name}', node?.name || '')}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {m.cancel}
           </Button>
           <Button type="button" variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? 'Deleting...' : 'Delete'}
+            {loading ? m.deleting : m.delete}
           </Button>
         </DialogFooter>
       </DialogContent>
