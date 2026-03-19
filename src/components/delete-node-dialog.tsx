@@ -45,7 +45,7 @@ export function DeleteNodeDialog({ open, onOpenChange, node, onDelete }: DeleteN
             Delete Node
           </DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete "{node?.name}"? This action cannot be undone.
+            Are you sure you want to delete &quot;{node?.name}&quot;? This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

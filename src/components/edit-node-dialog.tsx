@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { getErrorMessage } from '@/lib/errors'
 
 interface EditNodeDialogProps {
   open: boolean
@@ -78,8 +79,8 @@ export function EditNodeDialog({ open, onOpenChange, node, onEdit }: EditNodeDia
     try {
       await onEdit(node.id, { name, url, tags, notes })
       onOpenChange(false)
-    } catch (err: any) {
-      setError(err.message || 'Failed to update node')
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, 'Failed to update node'))
     } finally {
       setLoading(false)
     }

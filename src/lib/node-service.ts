@@ -1,5 +1,6 @@
 import { prisma } from './db'
 import { z } from 'zod'
+import { parseTags, formatTags } from './tags'
 
 export const NodeSchema = z.object({
   id: z.string().uuid().optional(),
@@ -19,16 +20,6 @@ export type Node = NodeInput & {
   updatedAt: Date
 }
 
-// Parse tags from comma-separated string
-export function parseTags(tags: string): string[] {
-  if (!tags) return []
-  return [...new Set(tags.split(',').map(t => t.trim()).filter(Boolean))]
-}
-
-// Format tags to comma-separated string
-export function formatTags(tags: string[]): string {
-  return tags.join(', ')
-}
 
 // Get all nodes
 export async function getNodes(): Promise<Node[]> {
@@ -60,11 +51,18 @@ export async function createNode(data: NodeInput): Promise<Node> {
 
 // Update node
 export async function updateNode(id: string, data: Partial<NodeInput>): Promise<Node> {
-  const updateData: any = {}
+  const updateData: Partial<{
+    name: string
+    url: string
+    tags: string
+    notes: string | null
+    favorite: boolean
+    lastOpenedAt: Date | null
+  }> = {}
   
   if (data.name !== undefined) updateData.name = data.name.trim()
   if (data.url !== undefined) updateData.url = data.url.trim()
-  if (data.tags !== undefined) updateData.tags = data.tags ? parseTags(data.tags).join(', ') : ''
+  if (data.tags !== undefined) updateData.tags = data.tags ? formatTags(parseTags(data.tags)) : ''
   if (data.notes !== undefined) updateData.notes = data.notes?.trim() || null
   if (data.favorite !== undefined) updateData.favorite = data.favorite
   if (data.lastOpenedAt !== undefined) updateData.lastOpenedAt = data.lastOpenedAt

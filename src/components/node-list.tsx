@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Search, Star, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -8,43 +8,26 @@ import { NodeCard } from '@/components/node-card'
 import { AddNodeDialog } from '@/components/add-node-dialog'
 import { EditNodeDialog } from '@/components/edit-node-dialog'
 import { DeleteNodeDialog } from '@/components/delete-node-dialog'
-
-// Inline utility to avoid importing server code in client
-function parseTags(tags: string): string[] {
-  if (!tags) return []
-  return [...new Set(tags.split(',').map(t => t.trim()).filter(Boolean))]
-}
-
-interface Node {
-  id: string
-  name: string
-  url: string
-  tags: string
-  notes: string | null
-  favorite: boolean
-  lastOpenedAt: Date | null
-  createdAt: Date
-  updatedAt: Date
-}
+import { parseTags } from '@/lib/tags'
+import type { PortalNode } from '@/lib/types'
 
 export function NodeList() {
-  const [nodes, setNodes] = useState<Node[]>([])
+  const [nodes, setNodes] = useState<PortalNode[]>([])
   const [allTags, setAllTags] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [loading, setLoading] = useState(true)
-  
-  // Dialog states
-  const [editNode, setEditNode] = useState<Node | null>(null)
+
+  const [editNode, setEditNode] = useState<PortalNode | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteNode, setDeleteNode] = useState<{ id: string; name: string } | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const fetchNodes = async () => {
     try {
-      const res = await fetch('/api/nodes')
-      const data = await res.json()
+      const response = await fetch('/api/nodes')
+      const data = await response.json()
       setNodes(data.nodes)
       setAllTags(data.tags)
     } catch (error) {
@@ -58,96 +41,97 @@ export function NodeList() {
     fetchNodes()
   }, [])
 
-  // Filter nodes
-  const filteredNodes = nodes.filter(node => {
-    // Search filter
+  const filteredNodes = nodes.filter((node) => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
-      const matchesSearch = 
+      const matchesSearch =
         node.name.toLowerCase().includes(query) ||
         node.url.toLowerCase().includes(query) ||
         node.tags.toLowerCase().includes(query) ||
         (node.notes?.toLowerCase().includes(query) ?? false)
-      if (!matchesSearch) return false
+
+      if (!matchesSearch) {
+        return false
+      }
     }
 
-    // Tag filter
     if (selectedTag) {
       const tags = parseTags(node.tags)
-      if (!tags.includes(selectedTag)) return false
+      if (!tags.includes(selectedTag)) {
+        return false
+      }
     }
 
-    // Favorites filter
-    if (showFavoritesOnly && !node.favorite) return false
+    if (showFavoritesOnly && !node.favorite) {
+      return false
+    }
 
     return true
   })
 
   const handleAdd = async (nodeData: { name: string; url: string; tags: string; notes: string }) => {
-    const res = await fetch('/api/nodes', {
+    const response = await fetch('/api/nodes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nodeData)
+      body: JSON.stringify(nodeData),
     })
-    
-    if (!res.ok) {
-      const error = await res.json()
+
+    if (!response.ok) {
+      const error = await response.json()
       throw new Error(error.error || 'Failed to add node')
     }
-    
+
     await fetchNodes()
   }
 
   const handleEdit = async (id: string, nodeData: { name: string; url: string; tags: string; notes: string }) => {
-    const res = await fetch(`/api/nodes/${id}`, {
+    const response = await fetch(`/api/nodes/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nodeData)
+      body: JSON.stringify(nodeData),
     })
-    
-    if (!res.ok) {
-      const error = await res.json()
+
+    if (!response.ok) {
+      const error = await response.json()
       throw new Error(error.error || 'Failed to update node')
     }
-    
+
     await fetchNodes()
   }
 
   const handleDelete = async (id: string) => {
-    const res = await fetch(`/api/nodes/${id}`, {
-      method: 'DELETE'
+    const response = await fetch(`/api/nodes/${id}`, {
+      method: 'DELETE',
     })
-    
-    if (!res.ok) {
+
+    if (!response.ok) {
       throw new Error('Failed to delete node')
     }
-    
+
     await fetchNodes()
   }
 
-  const handleToggleFavorite = async (node: Node) => {
-    const res = await fetch(`/api/nodes/${node.id}`, {
+  const handleToggleFavorite = async (node: PortalNode) => {
+    const response = await fetch(`/api/nodes/${node.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'toggleFavorite' })
+      body: JSON.stringify({ action: 'toggleFavorite' }),
     })
-    
-    if (res.ok) {
+
+    if (response.ok) {
       await fetchNodes()
     }
   }
 
-  const handleOpen = async (node: Node) => {
-    // Open in new tab
+  const handleOpen = async (node: PortalNode) => {
     window.open(node.url, '_blank')
-    
-    // Update lastOpenedAt
+
     await fetch(`/api/nodes/${node.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'open' })
+      body: JSON.stringify({ action: 'open' }),
     })
-    
+
     await fetchNodes()
   }
 
@@ -161,14 +145,13 @@ export function NodeList() {
 
   return (
     <div className="space-y-6">
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search nodes..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
             className="pl-10"
           />
         </div>
@@ -178,17 +161,16 @@ export function NodeList() {
             size="sm"
             onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
           >
-            <Star className={`h-4 w-4 mr-2 ${showFavoritesOnly ? 'fill-current' : ''}`} />
+            <Star className={`mr-2 h-4 w-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
             Favorites
           </Button>
           <AddNodeDialog onAdd={handleAdd} />
         </div>
       </div>
 
-      {/* Tag Filters */}
       {allTags.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {allTags.map(tag => (
+          {allTags.map((tag) => (
             <Button
               key={tag}
               variant={selectedTag === tag ? 'default' : 'secondary'}
@@ -206,19 +188,17 @@ export function NodeList() {
         </div>
       )}
 
-      {/* Clear filters */}
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
-          <X className="h-4 w-4 mr-1" />
+          <X className="mr-1 h-4 w-4" />
           Clear filters
         </Button>
       )}
 
-      {/* Node List */}
       {loading ? (
-        <div className="text-center py-12 text-muted-foreground">Loading...</div>
+        <div className="py-12 text-center text-muted-foreground">Loading...</div>
       ) : filteredNodes.length === 0 ? (
-        <div className="text-center py-12">
+        <div className="py-12 text-center">
           {nodes.length === 0 ? (
             <div className="space-y-4">
               <p className="text-lg font-medium">No nodes yet</p>
@@ -230,13 +210,19 @@ export function NodeList() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredNodes.map(node => (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredNodes.map((node) => (
             <NodeCard
               key={node.id}
               node={node}
-              onEdit={(n) => { setEditNode(n); setEditDialogOpen(true) }}
-              onDelete={(n) => { setDeleteNode({ id: n.id, name: n.name }); setDeleteDialogOpen(true) }}
+              onEdit={(selectedNode) => {
+                setEditNode(selectedNode)
+                setEditDialogOpen(true)
+              }}
+              onDelete={(selectedNode) => {
+                setDeleteNode({ id: selectedNode.id, name: selectedNode.name })
+                setDeleteDialogOpen(true)
+              }}
               onToggleFavorite={handleToggleFavorite}
               onOpen={handleOpen}
             />
@@ -244,7 +230,6 @@ export function NodeList() {
         </div>
       )}
 
-      {/* Edit Dialog */}
       <EditNodeDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
@@ -252,7 +237,6 @@ export function NodeList() {
         onEdit={handleEdit}
       />
 
-      {/* Delete Dialog */}
       <DeleteNodeDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
